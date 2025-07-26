@@ -1,5 +1,5 @@
 (function () {
-    const css = `
+    const baseCSS = `
         #social-proof-popup {
             position: fixed;
             bottom: 10px;
@@ -47,29 +47,6 @@
             height: 100%;
             object-fit: cover;
             border-radius: 50%;
-        }
-
-        .pulse-avatar {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            animation: pulse-animate 2s linear infinite;
-            background: var(--pulse-color);
-        }
-
-        @keyframes pulse-animate {
-            0% {
-                box-shadow: 0 0 0 0 var(--pulse-rgba), 0 0 0 0 var(--pulse-rgba);
-            }
-            40% {
-                box-shadow: 0 0 0 10px rgba(0,0,0,0), 0 0 0 0 var(--pulse-rgba);
-            }
-            80% {
-                box-shadow: 0 0 0 10px rgba(0,0,0,0), 0 0 0 15px rgba(0,0,0,0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(0,0,0,0), 0 0 0 15px rgba(0,0,0,0);
-            }
         }
 
         .sp-popup-content {
@@ -141,6 +118,27 @@
             background: #ffffff;
         }
 
+        /* PULSE AVATAR */
+        .pulse-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            animation: pulse-animate 2s linear infinite;
+            background: var(--pulse-color);
+        }
+
+        @keyframes pulse-animate {
+            0% {
+                box-shadow: 0 0 0 0 var(--pulse-rgba);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+            }
+        }
+
         @media (max-width: 480px) {
             #social-proof-popup {
                 left: 0;
@@ -161,23 +159,231 @@
     `;
 
     const style = document.createElement('style');
-    style.textContent = css;
+    style.textContent = baseCSS;
     document.head.appendChild(style);
 
-    function hexToRGBA(hex, alpha = 0.7) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    const popupHTML = `
+        <div id="social-proof-popup">
+            <button class="sp-popup-close" onclick="window.socialProofPopup?.close()">×</button>
+            <div class="sp-popup-container">
+                <div class="sp-popup-avatar" id="sp-popup-avatar"></div>
+                <div class="sp-popup-content">
+                    <div class="sp-popup-line1" id="sp-popup-line1"></div>
+                    <div class="sp-popup-line2" id="sp-popup-line2"></div>
+                    <div class="sp-popup-line3" id="sp-popup-line3"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    class SocialProofPopup {
+        constructor(options = {}) {
+            this.apiUrl = options.apiUrl || '';
+            this.delay = options.delay || 5000;
+            this.interval = options.interval || 15000;
+            this.showDuration = options.showDuration || 4000;
+            this.notifications = [];
+            this.currentIndex = 0;
+            this.intervalId = null;
+            this.isVisible = false;
+            this.dismissed = false;
+
+            this.init();
+        }
+
+        init() {
+            document.body.insertAdjacentHTML('beforeend', popupHTML);
+            if (this.apiUrl) {
+                this.loadNotifications();
+            } else {
+                this.notifications = this.getSampleNotifications();
+                if (this.notifications.length > 0) {
+                    setTimeout(() => this.startShowing(), this.delay);
+                }
+            }
+        }
+
+        getSampleNotifications() {
+            return [{
+                name: 'John',
+                location: 'São Paulo, SP',
+                action: 'is adding Proof to their website!',
+                time: '6 hours ago',
+                avatar: 'pulse',
+                trust: 'verified by Proof',
+                trust_link: 'https://useproof.com',
+                trust_hex: '#2563eb',
+                close_icon: 'show'
+            }];
+        }
+
+        async loadNotifications() {
+            try {
+                const response = await fetch(this.apiUrl);
+                const data = await response.json();
+                this.notifications = data.notifications || [];
+                if (this.notifications.length > 0) {
+                    setTimeout(() => this.startShowing(), this.delay);
+                }
+            } catch (error) {
+                console.warn('Social proof popup: Failed to load notifications', error);
+            }
+        }
+
+        startShowing() {
+            if (this.notifications.length === 0 || this.dismissed) return;
+            this.showNext();
+            this.intervalId = setInterval(() => {
+                if (!this.dismissed) this.showNext();
+            }, this.interval);
+        }
+
+        showNext() {
+            if (this.isVisible || this.dismissed) return;
+            const notification = this.notifications[this.currentIndex];
+            if (!notification) return;
+            this.showPopup(notification);
+            this.currentIndex++;
+            if (this.currentIndex >= this.notifications.length) {
+                this.shuffleNotifications();
+                this.currentIndex = 0;
+            }
+        }
+
+        shuffleNotifications() {
+            for (let i = this.notifications.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [this.notifications[i], this.notifications[j]] = [this.notifications[j], this.notifications[i]];
+            }
+        }
+
+        hexToRGBA(hex, alpha = 0.6) {
+            const r = parseInt(hex.slice(1, 3), 16),
+                  g = parseInt(hex.slice(3, 5), 16),
+                  b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        showPopup(notification) {
+            const popup = document.getElementById('social-proof-popup');
+            const avatarEl = document.getElementById('sp-popup-avatar');
+            const line1El = document.getElementById('sp-popup-line1');
+            const line2El = document.getElementById('sp-popup-line2');
+            const line3El = document.getElementById('sp-popup-line3');
+            const closeButton = popup.querySelector('.sp-popup-close');
+
+            if (!popup || !avatarEl || !line1El || !line2El || !line3El || !closeButton) return;
+
+            // Close button
+            const showClose = (notification.close_icon || 'show').toLowerCase() === 'show';
+            closeButton.style.display = showClose ? 'flex' : 'none';
+
+            // Avatar handling
+            const trustHex = notification.trust_hex || '#2563eb';
+            if (notification.avatar === 'pulse') {
+                avatarEl.innerHTML = '';
+                const pulseDiv = document.createElement('div');
+                pulseDiv.className = 'pulse-avatar';
+                pulseDiv.style.setProperty('--pulse-color', trustHex);
+                pulseDiv.style.setProperty('--pulse-rgba', this.hexToRGBA(trustHex));
+                avatarEl.appendChild(pulseDiv);
+            } else {
+                const avatarUrl = notification.avatar && notification.avatar.trim()
+                    ? notification.avatar.trim()
+                    : 'https://d1yei2z3i6k35z.cloudfront.net/13450389/687fe79659af6_icons8-fire-64.png';
+                avatarEl.innerHTML = `<img src="${this.escapeHtml(avatarUrl)}" alt="avatar">`;
+            }
+
+            // Name + Location
+            const name = notification.name ? `<strong>${this.escapeHtml(notification.name)}</strong>` : '';
+            const location = notification.location ? ` ${this.escapeHtml(notification.location)}` : '';
+            line1El.innerHTML = name + location;
+
+            // Action
+            line2El.textContent = notification.action || '';
+
+            // Time + Trust
+            const time = notification.time || '';
+            const trustText = notification.trust || '';
+            const trustLink = notification.trust_link || '';
+            const trustColor = trustHex;
+
+            const verifiedIcon = `
+                <svg class="sp-popup-verified-icon" viewBox="0 0 20 20" style="background: ${trustColor};">
+                    <path fill="white" stroke="white" stroke-width="0.8" fill-rule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clip-rule="evenodd"></path>
+                </svg>`;
+
+            let line3Content = '';
+            if (time) line3Content += time + ' ';
+            if (trustText) {
+                if (trustLink) {
+                    line3Content += `<a href="${this.escapeHtml(trustLink)}" target="_blank" class="sp-popup-verified-link" style="color: ${trustColor};">${verifiedIcon}${this.escapeHtml(trustText)}</a>`;
+                } else {
+                    line3Content += `<span class="sp-popup-verified-link" style="color: ${trustColor};">${verifiedIcon}${this.escapeHtml(trustText)}</span>`;
+                }
+            }
+            line3El.innerHTML = line3Content;
+
+            popup.style.display = 'block';
+            setTimeout(() => popup.classList.add('show'), 100);
+            this.isVisible = true;
+
+            setTimeout(() => this.hidePopup(), this.showDuration);
+        }
+
+        hidePopup() {
+            const popup = document.getElementById('social-proof-popup');
+            if (!popup) return;
+            popup.classList.remove('show');
+            setTimeout(() => {
+                popup.style.display = 'none';
+                this.isVisible = false;
+            }, 300);
+        }
+
+        close() {
+            this.dismissed = true;
+            this.stop();
+            this.hidePopup();
+        }
+
+        stop() {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
+                this.intervalId = null;
+            }
+        }
+
+        escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     }
 
-    function createPulseAvatar(hex) {
-        const pulseDiv = document.createElement('div');
-        pulseDiv.className = 'pulse-avatar';
-        pulseDiv.style.setProperty('--pulse-color', hex);
-        pulseDiv.style.setProperty('--pulse-rgba', hexToRGBA(hex));
-        return pulseDiv;
+    function initSocialProof() {
+        const script = document.querySelector('script[data-api-url]');
+        if (script) {
+            const options = {
+                apiUrl: script.getAttribute('data-api-url'),
+                delay: parseInt(script.getAttribute('data-delay')) || 5000,
+                interval: parseInt(script.getAttribute('data-interval')) || 15000,
+                showDuration: parseInt(script.getAttribute('data-show-duration')) || 4000,
+            };
+            window.socialProofPopup = new SocialProofPopup(options);
+        } else {
+            window.socialProofPopup = new SocialProofPopup();
+        }
     }
 
-    window.createPulseAvatar = createPulseAvatar;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSocialProof);
+    } else {
+        initSocialProof();
+    }
+
+    window.SocialProofPopup = SocialProofPopup;
 })();
