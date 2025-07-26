@@ -392,19 +392,3 @@
 
     window.SocialProofPopup = SocialProofPopup;
 })();
-
-
-const avatarContent = (() => {
-        const avatarEl = document.getElementById('sp-popup-avatar');
-        const trustColor = notification.trust_hex || '#0095f7';
-        if (notification.avatar?.toLowerCase() === 'pulse') {
-            return `<div class="sp-popup-pulse" style="background: ${trustColor}; opacity: 0.4;"></div>`;
-        } else {
-            const url = notification.avatar?.trim() || 'https://d1yei2z3i6k35z.cloudfront.net/13450389/687fe79659af6_icons8-fire-64.png';
-            return `<img src="${url}" alt="${notification.name || ''}">`;
-        }
-    })();
-    avatarEl.innerHTML = avatarContent;
-    // END avatar block
-
-// 🔵 END OF SCRIPT
