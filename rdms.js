@@ -6,9 +6,9 @@
             left: 10px;
             max-width: 500px;
             background: #ffffff;
-            border-radius: 50px;
+            border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            padding: 12px 20px 12px 12px;
+            padding: 8px 20px 7px 8px;
             font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
             font-size: 14px;
             line-height: 1.4;
