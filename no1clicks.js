@@ -40,6 +40,7 @@
             overflow: hidden;
             margin-left: 0px;
             flex-shrink: 0;
+            position: relative; /* for overlay positioning */
         }
 
         .sp-popup-avatar img {
@@ -47,11 +48,22 @@
             height: 100%;
             object-fit: cover;
             border-radius: 8px;
-
-            /* Disable user selection and touch callout */
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
+            pointer-events: none; /* disable pointer events on image itself */
+        }
+
+        /* Transparent overlay to block long-press */
+        .sp-popup-avatar .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            background: transparent;
+            touch-action: none;
         }
 
         .sp-popup-content {
@@ -221,6 +233,7 @@
         startShowing() {
             if (this.notifications.length === 0 || this.dismissed) return;
 
+            // Initial delay is random between minInterval and maxInterval
             const initialDelay = Math.floor(Math.random() * (this.maxInterval - this.minInterval + 1)) + this.minInterval;
 
             this.timerId = setTimeout(() => this.scheduleNext(), initialDelay);
@@ -231,6 +244,7 @@
 
             this.showNext();
 
+            // Schedule next popup with random delay between minInterval and maxInterval
             const randomDelay = Math.floor(Math.random() * (this.maxInterval - this.minInterval + 1)) + this.minInterval;
 
             this.timerId = setTimeout(() => this.scheduleNext(), randomDelay);
@@ -268,35 +282,29 @@
 
             if (!popup || !avatarEl || !line1El || !line2El || !line3El || !closeButton) return;
 
+            // Show or hide the close icon based on `close_icon`
             const showClose = (notification.close_icon || 'show').toLowerCase() === 'show';
             closeButton.style.display = showClose ? 'flex' : 'none';
 
+            // Avatar with fallback URL wrapped in overlay div
             const avatarUrl = notification.avatar && notification.avatar.trim()
                 ? notification.avatar.trim()
                 : 'https://d1yei2z3i6k35z.cloudfront.net/13450389/687fe79659af6_icons8-fire-64.png';
 
-            avatarEl.innerHTML = `<img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(notification.name || '')}">`;
+            avatarEl.innerHTML = `
+                <img src="${this.escapeHtml(avatarUrl)}" alt="${this.escapeHtml(notification.name || '')}">
+                <div class="overlay"></div>
+            `;
 
-            // === NEW BLOCK: Disable long-press on mobile for avatar image ===
-            const avatarImg = avatarEl.querySelector('img');
-            if (avatarImg) {
-                avatarImg.style.userSelect = 'none';
-                avatarImg.style.webkitUserSelect = 'none';
-                avatarImg.style.webkitTouchCallout = 'none';
-
-                avatarImg.addEventListener('contextmenu', e => e.preventDefault());
-                avatarImg.addEventListener('touchstart', e => e.preventDefault());
-                avatarImg.addEventListener('touchend', e => e.preventDefault());
-                avatarImg.addEventListener('touchmove', e => e.preventDefault());
-            }
-            // === END NEW BLOCK ===
-
+            // line1: name + location
             const nameText = notification.name ? `<strong>${this.escapeHtml(notification.name)}</strong>` : '';
             const locationText = notification.location ? ` ${this.escapeHtml(notification.location)}` : '';
             line1El.innerHTML = nameText + locationText;
 
+            // line2: action
             line2El.textContent = notification.action || '';
 
+            // line3: time + trust info
             const time = notification.time ? this.escapeHtml(notification.time) : '';
             const trustText = notification.trust ? this.escapeHtml(notification.trust) : '';
             const trustLink = notification.trust_link ? this.escapeHtml(notification.trust_link) : '';
